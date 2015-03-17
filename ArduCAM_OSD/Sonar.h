@@ -28,8 +28,9 @@ public:
     int getXpos() const;
     int getYpos() const;
     
-private:    
+private:
     SoftwareSerial mySerial;
+    void getData(unsigned long);
     int xPos, yPos, offset, val;
     int maxWait;
     unsigned long lastRead;
