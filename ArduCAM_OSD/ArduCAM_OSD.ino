@@ -92,10 +92,13 @@ along with this program. If not, see <http://www.gnu.org/licenses/>
 
 #define TELEMETRY_SPEED  57600  // How fast our MAVLink telemetry is coming to Serial port
 #define BOOTTIME         2000   // Time in milliseconds that we show boot loading bar and wait user input
+#define SONAR_TX         0      // Arduino pin to be used to used as a software TX
+#define SONAR_RX         1      // Arduino pin to be used to receive serial sonar data
+
 
 // Objects and Serial definitions
 OSD osd; //OSD object 
-Sonar mySonar(0, 1 , stall_ADDR, overspeed_ADDR, OSD_RSSI_LOW_ADDR); //sonar object
+Sonar mySonar(SONAR_TX, SONAR_RX, stall_ADDR, overspeed_ADDR, OSD_RSSI_LOW_ADDR); //sonar object
 
 /* **********************************************/
 /* ***************** SETUP() *******************/
