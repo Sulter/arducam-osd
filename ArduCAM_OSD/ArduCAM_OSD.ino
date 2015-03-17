@@ -147,7 +147,7 @@ void loop()
     delay(100); //prevent tearing?
 
     //reading from sonar
-    mySonar.loop();
+    mySonar.loop(millis());
 }
 
 void unplugSlaves(){
