@@ -101,7 +101,7 @@ OSD osd; //OSD object
 /* ***************** SETUP() *******************/
 
 SoftwareSerial mySerial(0,1,true);
-int xPos = 0, yPos = 0;
+int xPos = 0, yPos = 0, offset = 0;
 
 void setup() 
 {
@@ -146,6 +146,7 @@ void setup()
     }
     
     //read positions
+    offset = EEPROM.read(OSD_RSSI_LOW_ADDR);
     xPos = EEPROM.read(stall_ADDR);
     yPos = EEPROM.read(overspeed_ADDR);
     
@@ -173,14 +174,15 @@ void setup()
 // Mother of all happenings, The loop()
 // As simple as possible.
 
-char val[4] = {88,88,88,0};
+//char val[4] = {88,88,88,0};
+int val = 0;
 
 void loop() 
 {
     osd.clear();
     osd.setPanel(xPos,yPos);
     osd.openPanel();
-    osd.printf_P(PSTR("%scm"), val); 
+    osd.printf_P(PSTR("%dcm"), val-offset); 
     osd.closePanel(); 
     delay(100);
     
@@ -194,16 +196,14 @@ void loop()
         c = mySerial.read();
         if(c == 'R')
         {
-          char tmp[3] = {88,88,88};
+          char tmp[4] = "000";
           tmp[0] = mySerial.read();
           tmp[1] = mySerial.read();
           tmp[2] = mySerial.read();
           c = mySerial.read();
           if(c == 13)
           {
-             val[0] = tmp[0];
-             val[1] = tmp[1];
-             val[2] = tmp[2];
+             val = atoi(tmp);
           }
         }       
       }    
