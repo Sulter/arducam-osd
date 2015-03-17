@@ -80,6 +80,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>
 #include "OSD_Vars.h"
 #include "OSD_Func.h"
 
+//sonar sensor
+#include "Sonar.h"
+
 /* *************************************************/
 /* ***************** DEFINITIONS *******************/
 
@@ -91,34 +94,14 @@ along with this program. If not, see <http://www.gnu.org/licenses/>
 #define BOOTTIME         2000   // Time in milliseconds that we show boot loading bar and wait user input
 
 // Objects and Serial definitions
-//FastSerialPort0(Serial);
 OSD osd; //OSD object 
-
-//SimpleTimer  mavlinkTimer;
-
+Sonar mySonar(0, 1 , stall_ADDR, overspeed_ADDR, OSD_RSSI_LOW_ADDR); //sonar object
 
 /* **********************************************/
 /* ***************** SETUP() *******************/
 
-SoftwareSerial mySerial(0,1,true);
-int xPos = 0, yPos = 0, offset = 0;
-
 void setup() 
 {
-#ifdef ArduCAM328
-    pinMode(10, OUTPUT); // USB ArduCam Only
-#endif
-    pinMode(MAX7456_SELECT,  OUTPUT); // OSD CS
-    
-    
-    mySerial.begin(9600);
-    // setup mavlink port
-//    mavlink_comm_0_port = &Serial;
-
-#ifdef membug
-    //Serial.println(freeMem());
-#endif
-
     // Prepare OSD for displaying 
     unplugSlaves();
     osd.init();
@@ -126,14 +109,6 @@ void setup()
     // Start 
     startPanels();
     delay(500);
-
-    // OSD debug for development (Shown at start)
-#ifdef membug
-    osd.setPanel(1,1);
-    osd.openPanel();
-    osd.printf("%i",freeMem()); 
-    osd.closePanel();
-#endif
 
     // Check EEPROM to for a new version that needs EEPROM reset
     if(readEEPROM(CHK_VERSION) != VER) {
@@ -144,25 +119,12 @@ void setup()
         // run for ever until EEPROM version is OK 
         for(;;) {}
     }
-    
-    //read positions
-    offset = EEPROM.read(OSD_RSSI_LOW_ADDR);
-    xPos = EEPROM.read(stall_ADDR);
-    yPos = EEPROM.read(overspeed_ADDR);
-    
-    // Get correct panel settings from EEPROM
-//    readSettings();
-//    for(panel = 0; panel < npanels; panel++) readPanelSettings();
-//    panel = 0; //set panel to 0 to start in the first navigation screen
+
     // Show bootloader bar
     loadBar();
 
-    // Startup MAVLink timers  
-//    mavlinkTimer.Set(&OnMavlinkTimer, 120);
-
     // House cleaning, clear display and enable timers
     osd.clear();
- //   mavlinkTimer.Enable();
 
 } // END of setup();
 
@@ -174,79 +136,19 @@ void setup()
 // Mother of all happenings, The loop()
 // As simple as possible.
 
-//char val[4] = {88,88,88,0};
-int val = 0;
-
 void loop() 
 {
+    //osd stuff
     osd.clear();
-    osd.setPanel(xPos,yPos);
+    osd.setPanel(mySonar.getXpos(), mySonar.getYpos());
     osd.openPanel();
-    osd.printf_P(PSTR("%dcm"), val-offset); 
+    osd.printf_P(PSTR("%dcm"), mySonar.getDistance()); 
     osd.closePanel(); 
-    delay(100);
-    
-    
-    if( mySerial.available() >= 5)
-    { 
-      char c;
-      char k = 0;
-      for(int i = 0; i < 5; i++)
-      {
-        c = mySerial.read();
-        if(c == 'R')
-        {
-          char tmp[4] = "000";
-          tmp[0] = mySerial.read();
-          tmp[1] = mySerial.read();
-          tmp[2] = mySerial.read();
-          c = mySerial.read();
-          if(c == 13)
-          {
-             val = atoi(tmp);
-          }
-        }       
-      }    
-    }
-    
-    /*
-    if(enable_mav_request == 1){//Request rate control
-        osd.clear();
-        osd.setPanel(3,10);
-        osd.openPanel();
-        osd.printf_P(PSTR("Requesting DataStreams...")); 
-        osd.closePanel();
-        for(int n = 0; n < 3; n++){
-            request_mavlink_rates();//Three times to certify it will be readed
-            delay(50);
-        }
-        enable_mav_request = 0;
-        delay(2000);
-        osd.clear();
-        waitingMAVBeats = 0;
-        lastMAVBeat = millis();//Preventing error from delay sensing
-    }
+    delay(100); //prevent tearing?
 
-    read_mavlink();
-    mavlinkTimer.Run();
-    
-    */
+    //reading from sonar
+    mySonar.loop();
 }
-
-/* *********************************************** */
-/* ******** functions used in main loop() ******** */
-void OnMavlinkTimer()
-{
-    setHeadingPatern();  // generate the heading patern
-
-    //  osd_battery_pic_A = setBatteryPic(osd_battery_remaining_A);     // battery A remmaning picture
-    //osd_battery_pic_B = setBatteryPic(osd_battery_remaining_B);     // battery B remmaning picture
-
-    setHomeVars(osd);   // calculate and set Distance from home and Direction to home
-    
-    writePanels();       // writing enabled panels (check OSD_Panels Tab)
-}
-
 
 void unplugSlaves(){
     //Unplug list of SPI
