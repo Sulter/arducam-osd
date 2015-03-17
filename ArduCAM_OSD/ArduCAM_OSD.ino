@@ -54,6 +54,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>
 
 // AVR Includes
 #include <FastSerial.h>
+#include <SoftwareSerial.h>
 #include <AP_Common.h>
 #include <AP_Math.h>
 #include <math.h>
@@ -90,14 +91,17 @@ along with this program. If not, see <http://www.gnu.org/licenses/>
 #define BOOTTIME         2000   // Time in milliseconds that we show boot loading bar and wait user input
 
 // Objects and Serial definitions
-FastSerialPort0(Serial);
+//FastSerialPort0(Serial);
 OSD osd; //OSD object 
 
-SimpleTimer  mavlinkTimer;
+//SimpleTimer  mavlinkTimer;
 
 
 /* **********************************************/
 /* ***************** SETUP() *******************/
+
+SoftwareSerial mySerial(0,1,true);
+int xPos = 0, yPos = 0;
 
 void setup() 
 {
@@ -105,13 +109,14 @@ void setup()
     pinMode(10, OUTPUT); // USB ArduCam Only
 #endif
     pinMode(MAX7456_SELECT,  OUTPUT); // OSD CS
-
-    Serial.begin(TELEMETRY_SPEED);
+    
+    
+    mySerial.begin(9600);
     // setup mavlink port
-    mavlink_comm_0_port = &Serial;
+//    mavlink_comm_0_port = &Serial;
 
 #ifdef membug
-    Serial.println(freeMem());
+    //Serial.println(freeMem());
 #endif
 
     // Prepare OSD for displaying 
@@ -139,20 +144,24 @@ void setup()
         // run for ever until EEPROM version is OK 
         for(;;) {}
     }
-
+    
+    //read positions
+    xPos = EEPROM.read(stall_ADDR);
+    yPos = EEPROM.read(overspeed_ADDR);
+    
     // Get correct panel settings from EEPROM
-    readSettings();
-    for(panel = 0; panel < npanels; panel++) readPanelSettings();
-    panel = 0; //set panel to 0 to start in the first navigation screen
+//    readSettings();
+//    for(panel = 0; panel < npanels; panel++) readPanelSettings();
+//    panel = 0; //set panel to 0 to start in the first navigation screen
     // Show bootloader bar
     loadBar();
 
     // Startup MAVLink timers  
-    mavlinkTimer.Set(&OnMavlinkTimer, 120);
+//    mavlinkTimer.Set(&OnMavlinkTimer, 120);
 
     // House cleaning, clear display and enable timers
     osd.clear();
-    mavlinkTimer.Enable();
+ //   mavlinkTimer.Enable();
 
 } // END of setup();
 
@@ -163,9 +172,44 @@ void setup()
 
 // Mother of all happenings, The loop()
 // As simple as possible.
+
+char val[4] = {88,88,88,0};
+
 void loop() 
 {
-
+    osd.clear();
+    osd.setPanel(xPos,yPos);
+    osd.openPanel();
+    osd.printf_P(PSTR("%scm"), val); 
+    osd.closePanel(); 
+    delay(100);
+    
+    
+    if( mySerial.available() >= 5)
+    { 
+      char c;
+      char k = 0;
+      for(int i = 0; i < 5; i++)
+      {
+        c = mySerial.read();
+        if(c == 'R')
+        {
+          char tmp[3] = {88,88,88};
+          tmp[0] = mySerial.read();
+          tmp[1] = mySerial.read();
+          tmp[2] = mySerial.read();
+          c = mySerial.read();
+          if(c == 13)
+          {
+             val[0] = tmp[0];
+             val[1] = tmp[1];
+             val[2] = tmp[2];
+          }
+        }       
+      }    
+    }
+    
+    /*
     if(enable_mav_request == 1){//Request rate control
         osd.clear();
         osd.setPanel(3,10);
@@ -185,6 +229,8 @@ void loop()
 
     read_mavlink();
     mavlinkTimer.Run();
+    
+    */
 }
 
 /* *********************************************** */
